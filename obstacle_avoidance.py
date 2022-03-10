@@ -109,15 +109,17 @@ class AvoidanceNavigation:
             local_trajectory = self.pf_computer.compute_trajectory(point_cloud=pointcloud,
                                                                    vehicle_coord=vehicle_coord,
                                                                    target_coord=self.target_point,
-                                                                   speed=3,
+                                                                   speed=5,
                                                                    dt=0.05,
-                                                                   n_points=60)
+                                                                   n_points=30)
 
             self._fly_trajectory(local_trajectory, 5)
 
         self.flying = False
         self.navigate(x=self.target_point[0], y=self.target_point[1], z=self.target_point[2], yaw=0, speed=1, frame_id='map')
         print("Target point achieved, disengaging obstacle avoidance mode")
+
+        self.telem_history['pointcloud'] = self.mapper.get_pointcloud()
 
         with open('./logs/flight.pickle', 'wb') as file:
             pickle.dump(self.telem_history, file)

@@ -6,7 +6,7 @@ import math
 RTH_ALTITUDE = 8
 HOME_X = 0
 HOME_Y = 0
-HOME_Z = 3
+HOME_Z = 2.2
 
 rospy.init_node('flight')
 
