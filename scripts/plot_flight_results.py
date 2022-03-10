@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 with open('../logs/flight.pickle', 'rb') as file:
     data = pickle.load(file)
 
-plt.plot(data['time'], data['v_pf'], label='x')
+plt.plot(data['time'], data['vx'], label='x')
 plt.plot(data['time'], data['vy'], label='y')
 plt.plot(data['time'], data['vz'], label='z')
 plt.title('X, Y, Z координаты')
