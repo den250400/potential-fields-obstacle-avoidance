@@ -9,8 +9,10 @@ import threading
 
 
 class PointCloudMapper:
-    def __init__(self, depth_topic, pointcloud_size=2000, pointcloud_size_max=10000, downsample_factor=2):
+    def __init__(self, depth_topic, update_frequency=0.5, pointcloud_size=2000, pointcloud_size_max=10000, downsample_factor=2,
+                 min_dist=0.15):
         self.depth_topic = depth_topic
+        self.update_frequency = update_frequency
         self.pointcloud_size = pointcloud_size
         self.pointcloud_size_max = pointcloud_size_max
         self.downsample_factor = downsample_factor
@@ -22,6 +24,7 @@ class PointCloudMapper:
         self.recent_telem = None
         self.recent_pointcloud_msg = None
         self.pointcloud = np.zeros(shape=(0, 3))
+        self.min_dist = min_dist
 
         self.mapping_thread = threading.Thread(target=self._loop)
 
@@ -54,6 +57,9 @@ class PointCloudMapper:
             # Depth camera outputs point cloud with z-axis pointing forward, compensate it
             point_arr = self._rotate_pointcloud(point_arr, [-90, 0, -90])
 
+            # Drop points inside min_dist sphere to avoid points from vehicle body
+            point_arr = point_arr[np.linalg.norm(point_arr, axis=1) > self.min_dist, :]
+
             # Compensate copter's position and orientation
             telem = self.recent_telem
             point_arr = self._rotate_pointcloud(point_arr, [telem.roll, telem.pitch, telem.yaw], degrees=False)
@@ -65,7 +71,7 @@ class PointCloudMapper:
             if self.pointcloud.shape[0] > self.pointcloud_size_max:
                 self.pointcloud = self.pointcloud[::self.downsample_factor]
 
-            rospy.sleep(1)
+            rospy.sleep(self.update_frequency)
 
     def get_pointcloud(self):
         if self.pointcloud.shape[0] == 0:
