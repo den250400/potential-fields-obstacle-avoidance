@@ -4,6 +4,6 @@ import time
 from obstacle_avoidance import AvoidanceNavigation
 
 
-nav = AvoidanceNavigation(np.array([14, 0, 2.2]))
+nav = AvoidanceNavigation(np.array([24, 3, 6]))
 time.sleep(3)
 nav.start()

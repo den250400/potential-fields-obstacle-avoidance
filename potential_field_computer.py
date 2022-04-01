@@ -1,8 +1,4 @@
 import numpy as np
-from scipy.spatial.transform import Rotation
-from matplotlib import pyplot as plt
-
-import time
 
 
 class PotentialFieldComputer:
@@ -20,12 +16,13 @@ class PotentialFieldComputer:
                 repelling_force = np.zeros(3)
             else:
                 diff = point_cloud - vehicle_coord.reshape(1, 3)
-                repel_directions = -diff / np.linalg.norm(diff, axis=1, keepdims=True)
+                dist = np.linalg.norm(diff, axis=1, keepdims=True)
+                repel_directions = -diff / dist
 
-                distance_component = (1 / np.linalg.norm(diff, axis=1, keepdims=True) - 1 / self.dist_threshold)
+                distance_component = (1 / dist - 1 / self.dist_threshold)
 
                 nullifier = np.ones_like(diff)
-                nullifier[np.linalg.norm(diff, axis=1) > self.dist_threshold, :] = np.zeros(3)
+                nullifier[dist.reshape(-1) > self.dist_threshold, :] = np.zeros(3)
 
                 repelling_force = np.sum(repel_directions * self.q_copter * self.q_obstacle * nullifier * distance_component, axis=0)
 

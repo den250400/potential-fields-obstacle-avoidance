@@ -9,7 +9,7 @@ import threading
 
 
 class PointCloudMapper:
-    def __init__(self, depth_topic, update_frequency=0.5, pointcloud_size=2000, pointcloud_size_max=10000, downsample_factor=2,
+    def __init__(self, depth_topic, update_frequency=0.5, pointcloud_size=1000, pointcloud_size_max=5000, downsample_factor=2,
                  min_dist=0.15):
         self.depth_topic = depth_topic
         self.update_frequency = update_frequency

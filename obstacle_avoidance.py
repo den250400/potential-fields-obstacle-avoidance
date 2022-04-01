@@ -1,12 +1,10 @@
 import rospy
 import numpy as np
 from clover import srv
-from matplotlib import pyplot as plt
 from potential_field_computer import PotentialFieldComputer
 from mapping import PointCloudMapper
 
 import math
-import sys
 import time
 import pickle
 import threading
@@ -15,9 +13,9 @@ rospy.init_node('obstacle_avoidance')
 
 
 class AvoidanceNavigation:
-    def __init__(self, target_point, depth_topic='/realsense/depth/color/points', target_point_frame='map',
-                 tl_write_frequency=0.01, point_cloud_size=3000, target_point_tolerance=0.7, trajectory_tolerance=0.3,
-                 traj_compute_frequency=0.6):
+    def __init__(self, target_point, depth_topic='/camera/depth/color/points', target_point_frame='map',
+                 tl_write_frequency=0.01, point_cloud_size=3000, target_point_tolerance=1, trajectory_tolerance=0.3,
+                 traj_compute_frequency=0.1):
         self.target_point = target_point
         self.target_point_frame = target_point_frame
         self.pf_computer = PotentialFieldComputer(q_obstacle=1, q_target=20, q_copter=1, dist_threshold=2)
@@ -31,6 +29,7 @@ class AvoidanceNavigation:
 
         self.flying = False
         self.v_pf = 0
+        self.telem = None
         self.telem_history = {
             'x': [],
             'y': [],
@@ -49,8 +48,10 @@ class AvoidanceNavigation:
         self.get_telemetry = rospy.ServiceProxy('get_telemetry', srv.GetTelemetry)
 
         self.write_history_thread = threading.Thread(target=self._write_telemtry_history)
+        self.telem_update_thread = threading.Thread(target=self._telem_updater)
         self.traj_control_thread = None
         self.write_history_thread.start()
+        self.telem_update_thread.start()
 
         self.mapper.start()
 
@@ -83,6 +84,10 @@ class AvoidanceNavigation:
             self.telem_history['time'].append(time.time() - start_time)
             rospy.sleep(self.tl_write_frequency)
 
+    def _telem_updater(self):
+        while True:
+            self.telem = self.get_telemetry(frame_id='map')
+
     def _fly_trajectory(self, trajectory, speed, start_percent=30):
         self.update_traj_flag = False  # Reset the trajectory execution stopper flag
 
@@ -95,18 +100,49 @@ class AvoidanceNavigation:
             if not self.flying or self.update_traj_flag:
                 break
 
+            t1 = time.time()
             tl = self.get_telemetry(frame_id='map')
-            print(trajectory[i], i)
+            print("Time for fetching telemetry:", time.time() - t1)
+            #print(trajectory[i], i)
             yaw = math.atan2(trajectory[i, 1] - tl.y, trajectory[i, 0] - tl.x)
             self.set_position(x=trajectory[i, 0], y=trajectory[i, 1], z=trajectory[i, 2], yaw=yaw, frame_id='map')
-            rospy.sleep(dt + 0.001)
+            rospy.sleep(dt)
+
+    def _fly_trajectory_v(self, trajectory, speed, lead=1.2):
+        self.update_traj_flag = False  # Reset the trajectory execution stopper flag
+
+        # Pre-compute initial lead index
+        diff = trajectory - np.array([self.telem.x, self.telem.y, self.telem.z]).reshape(1, 3)
+        dist = np.linalg.norm(diff, axis=1)
+        i = np.argmin(dist)
+        while i < len(trajectory):
+            if not self.flying or self.update_traj_flag:
+                break
+
+            # Move target point to fulfill lead requirement
+            while True:
+                diff = trajectory[i] - np.array([self.telem.x, self.telem.y, self.telem.z])
+                dist = np.linalg.norm(diff)
+
+                if dist > lead or i == len(trajectory) - 1:
+                    break
+                else:
+                    i += 1
+
+            yaw = math.atan2(diff[1], diff[0])
+            vx = speed * diff[0] / dist
+            vy = speed * diff[1] / dist
+            vz = speed * diff[2] / dist
+            #print(trajectory[i], i, diff)
+            self.set_velocity(vx=vx, vy=vy, vz=vz, yaw=yaw, frame_id='map')
+            #self.set_position(x=trajectory[i, 0], y=trajectory[i, 1], z=trajectory[i, 2], yaw=yaw)
 
     def _update_trajectory(self, trajectory, speed):
         if self.traj_control_thread is not None:
             self.update_traj_flag = True  # This flag will be read in current self._fly_trajectory thread
             self.traj_control_thread.join()
 
-        self.traj_control_thread = threading.Thread(target=self._fly_trajectory, args=(trajectory, speed))
+        self.traj_control_thread = threading.Thread(target=self._fly_trajectory_v, args=(trajectory, speed))
         self.traj_control_thread.start()
 
     def start(self):
@@ -120,28 +156,30 @@ class AvoidanceNavigation:
         rospy.sleep(4)
 
         while True:
-            telem_map = self.get_telemetry(frame_id='map')
-            if self._check_finish_condition(telem_map):
+            if self._check_finish_condition(self.telem):
                 break
 
             pointcloud = self.mapper.get_pointcloud()
             if pointcloud.shape[0] == 0:
                 continue
 
-            vehicle_coord = np.array([telem_map.x, telem_map.y, telem_map.z])
+            vehicle_coord = np.array([self.telem.x, self.telem.y, self.telem.z])
+            t1 = time.time()
             local_trajectory = self.pf_computer.compute_trajectory(point_cloud=pointcloud,
                                                                    vehicle_coord=vehicle_coord,
                                                                    target_coord=self.target_point,
-                                                                   speed=7,
-                                                                   dt=0.05,
-                                                                   n_points=60)
+                                                                   speed=3,
+                                                                   dt=0.07,
+                                                                   n_points=35)
+            print(time.time() - t1)
 
             print("Trajectory computed")
             self.telem_history['local_trajectories'].append(local_trajectory)
-            self._update_trajectory(local_trajectory, 7)
+            self._update_trajectory(local_trajectory, 3)
             rospy.sleep(self.traj_compute_frequency)
 
         self.flying = False
+        self.set_velocity(vx=0, vy=0, vz=0, frame_id='map')
         self.navigate(x=self.target_point[0], y=self.target_point[1], z=self.target_point[2], yaw=0, speed=1,
                       frame_id='map')
         print("Target point achieved, disengaging obstacle avoidance mode")
