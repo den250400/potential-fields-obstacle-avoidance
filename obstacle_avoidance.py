@@ -15,11 +15,11 @@ rospy.init_node('obstacle_avoidance')
 class AvoidanceNavigation:
     def __init__(self, target_point, depth_topic='/camera/depth/color/points', target_point_frame='map',
                  tl_write_frequency=0.01, point_cloud_size=3000, target_point_tolerance=1, trajectory_tolerance=0.3,
-                 traj_compute_frequency=0.1):
+                 traj_compute_frequency=0.1, map_update_frequency=0.2):
         self.target_point = target_point
         self.target_point_frame = target_point_frame
         self.pf_computer = PotentialFieldComputer(q_obstacle=1, q_target=20, q_copter=1, dist_threshold=2)
-        self.mapper = PointCloudMapper(depth_topic, update_frequency=traj_compute_frequency)
+        self.mapper = PointCloudMapper(depth_topic, update_frequency=map_update_frequency)
         self.tl_write_frequency = tl_write_frequency
         self.traj_compute_frequency = traj_compute_frequency
         self.point_cloud_size = point_cloud_size
@@ -38,6 +38,7 @@ class AvoidanceNavigation:
             'vy': [],
             'vz': [],
             'yaw': [],
+            'pointcloud': [],
             'local_trajectories': [],
             'time': []
         }
@@ -108,13 +109,14 @@ class AvoidanceNavigation:
             self.set_position(x=trajectory[i, 0], y=trajectory[i, 1], z=trajectory[i, 2], yaw=yaw, frame_id='map')
             rospy.sleep(dt)
 
-    def _fly_trajectory_v(self, trajectory, speed, lead=1.2):
+    def _fly_trajectory_v(self, trajectory, speed, lead=1.5):
         self.update_traj_flag = False  # Reset the trajectory execution stopper flag
 
         # Pre-compute initial lead index
         diff = trajectory - np.array([self.telem.x, self.telem.y, self.telem.z]).reshape(1, 3)
         dist = np.linalg.norm(diff, axis=1)
         i = np.argmin(dist)
+        print(i, '/', len(dist))
         while i < len(trajectory):
             if not self.flying or self.update_traj_flag:
                 break
@@ -129,7 +131,9 @@ class AvoidanceNavigation:
                 else:
                     i += 1
 
-            yaw = math.atan2(diff[1], diff[0])
+            end_trajectory_pointer = trajectory[-1] - np.array([self.telem.x, self.telem.y, self.telem.z])
+
+            yaw = math.atan2(end_trajectory_pointer[1], end_trajectory_pointer[0])
             vx = speed * diff[0] / dist
             vy = speed * diff[1] / dist
             vz = speed * diff[2] / dist
@@ -153,7 +157,9 @@ class AvoidanceNavigation:
         telem = self.get_telemetry(frame_id='map')
         target_yaw = math.atan2(self.target_point[1] - telem.y, self.target_point[0] - telem.x)
         self.set_velocity(vx=0, vy=0, vz=0, yaw=target_yaw)
-        rospy.sleep(4)
+        while math.fabs(self.telem.yaw - target_yaw) > 0.1:
+            continue
+        rospy.sleep(2)
 
         while True:
             if self._check_finish_condition(self.telem):
@@ -169,13 +175,14 @@ class AvoidanceNavigation:
                                                                    vehicle_coord=vehicle_coord,
                                                                    target_coord=self.target_point,
                                                                    speed=3,
-                                                                   dt=0.07,
-                                                                   n_points=35)
+                                                                   dt=0.05,
+                                                                   n_points=60)
             print(time.time() - t1)
 
             print("Trajectory computed")
             self.telem_history['local_trajectories'].append(local_trajectory)
-            self._update_trajectory(local_trajectory, 3)
+            self.telem_history['pointcloud'].append(self.mapper.get_pointcloud())
+            self._update_trajectory(local_trajectory, 1.5)
             rospy.sleep(self.traj_compute_frequency)
 
         self.flying = False
@@ -184,7 +191,5 @@ class AvoidanceNavigation:
                       frame_id='map')
         print("Target point achieved, disengaging obstacle avoidance mode")
 
-        self.telem_history['pointcloud'] = self.mapper.get_pointcloud()
-
-        with open('./logs/flight.pickle', 'wb') as file:
+        with open('logs/flight.pickle', 'wb') as file:
             pickle.dump(self.telem_history, file)

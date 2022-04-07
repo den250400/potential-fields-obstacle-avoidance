@@ -24,6 +24,7 @@ class PointCloudMapper:
         self.recent_telem = None
         self.recent_pointcloud_msg = None
         self.pointcloud = np.zeros(shape=(0, 3))
+        self.pointcloud_saved = np.zeros(shape=(0, 3))
         self.min_dist = min_dist
 
         self.mapping_thread = threading.Thread(target=self._loop)
@@ -66,6 +67,7 @@ class PointCloudMapper:
             point_arr = point_arr + np.array([telem.x, telem.y, telem.z]).reshape(1, 3)
 
             self.pointcloud = np.append(self.pointcloud, point_arr, axis=0)
+            self.pointcloud_saved = np.append(self.pointcloud_saved, point_arr, axis=0)
 
             # Downsample the resulting pointcloud if it exceeds maximum size
             if self.pointcloud.shape[0] > self.pointcloud_size_max:

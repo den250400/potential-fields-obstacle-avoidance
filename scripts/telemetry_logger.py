@@ -46,6 +46,8 @@ class TelemetryLogger:
             self.telem_history['yaw'].append(telem.yaw)
             self.telem_history['time'].append(time.time() - start_time)
 
+            print(telem.x, telem.y, telem.z)
+
             if len(self.telem_history['time']) % self.save_period == 0:
                 with open(self.save_path, 'wb') as file:
                     pickle.dump(self.telem_history, file)
