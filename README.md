@@ -11,4 +11,16 @@ Artificial potential fields method is based on considering quadcopter, obstacles
 It's obvious that you need some sort of geometrical information about the surrounding world if you want to avoid obstacles. This algorithm uses Intel Realsense D435 depth camera - it provides a 3D point cloud which can be easily used for potential fields computation.
 
 ## Installation
-First of all, install the [Clover simulator](https://clover.coex.tech/en/simulation.html). 
+This guide is intended to be used on Ubuntu 20.04
+
+1. Install the [Clover simulator](https://clover.coex.tech/en/simulation.html). 
+2. Install [realsense_gazebo_plugin](https://github.com/issaiass/realsense_gazebo_plugin) and [realsense2_description](https://github.com/issaiass/realsense2_description):
+```bash
+cd ~/catkin_ws/src
+git clone https://github.com/issaiass/realsense_gazebo_plugin
+git clone https://github.com/issaiass/realsense2_description
+cd ~/catkin_ws
+catkin_make
+```
+3. Replace your ~/catkin_ws/src/clover/clover_description folder with one in this repository. This will add Realsense D435 to quadcopter model and make other minor changes so you will be able to reproduce our results.
+
