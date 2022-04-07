@@ -34,3 +34,21 @@ PYTHONPATH=/home/<username>/catkin_ws/devel/lib/python3/dist-packages:/opt/ros/n
 ```
 If it's not, add the following paths to PYTHONPATH
 
+## Launch
+Launch the clover simulator and spawn some obstacles
+```bash
+roslaunch clover_simulation simulator.launch
+```
+Open another terminal window, and launch the takeoff script. The drone will arm its motors and take off to the altitude specified in takeoff.py script
+```bash
+python3 ./scripts/takeoff.py
+```
+Then, you should open main.py script and specify the target point. It is defined on line
+```python
+nav = AvoidanceNavigation(np.array([0, 0, 2]))
+```
+Finally, launch main.py to start the obstacle avoidance flight
+```bash
+python3 main.py
+```
+
