@@ -1,5 +1,9 @@
 # Obstacle avoidance based on artificial potential fields method
 
+<p align="center">
+  <img src="https://github.com/den250400/potential-fields-obstacle-avoidance/blob/main/assets/avoidance_sim_demo.gif" />
+</p>
+
 This repository contains obstacle avoidance system for quadcopters with Raspberry Pi 4 onboard computer. The code in this repository is designed to work with [Clover Raspberry Pi image](https://clover.coex.tech/en/image.html) and [special PX4-based firmware](https://clover.coex.tech/en/firmware.html) modified for easier communication with Raspberry Pi.
 
 Artificial potential fields method is based on considering quadcopter, obstacles and target point as electric-charged points. Quadcopter and obstacles have positive charge, and target point is assigned with negative charge. This results in quadcopter "attracting" itself to the target point, while being repelled by the same-signed charges of obstacles. Using this analogy, you can compute a safe, collision-free trajectory, which can be executed by the vehicle.
@@ -33,4 +37,22 @@ sudo apt-get install ros-noetic-ros-numpy
 PYTHONPATH=/home/<username>/catkin_ws/devel/lib/python3/dist-packages:/opt/ros/noetic/lib/python3/dist-packages
 ```
 If it's not, add the following paths to PYTHONPATH
+
+## Launch
+Launch the clover simulator and spawn some obstacles
+```bash
+roslaunch clover_simulation simulator.launch
+```
+Open another terminal window, and launch the takeoff script. The drone will arm its motors and take off to the altitude specified in takeoff.py script
+```bash
+python3 ./scripts/takeoff.py
+```
+Then, you should open main.py script and specify the target point (as x, y, z array). It is defined on the line
+```python
+nav = AvoidanceNavigation(np.array([0, 0, 2]))
+```
+Finally, launch main.py to start the obstacle avoidance flight
+```bash
+python3 main.py
+```
 
