@@ -56,3 +56,15 @@ Finally, launch main.py to start the obstacle avoidance flight
 python3 main.py
 ```
 
+## Obstacle avoidance algorithm description
+This algorithm uses a point cloud produced by stereo camera to infer the flight path by simulating a motion of charged particle. Each point from the point cloud is considered as obstacle, and repells the vehicle with the force directed in 'point->vehicle' direction. The repelling force has a magnitude ```q_repel / dist``` (dist is distance from vehicle to point). Similarly, an attraction point attracts the vehicle with the constant magnitude of ```q_attract```. **The sum of these force vectors is the desired flight direction.**. The speed of a particle is set as ```speed``` argument of ```AvoidanceNavigation``` and directed along the resulted force vector. This way, we get a motion equation which we can solve numerically. Now, we have the trajectory which can be executed by the vehicle.
+
+The algorithm is still in development, so we can't guarantee that default parameters will work in all cases. However, you may tweak the parameters yourself. Here is a brief description of each parameter in descending order of importance:
+```spped``` - if your vehicle systematically crashes, the first thing you should do is to decrease the flight speed. Values of 1.5-2 m/s show good performance on most obstacle types
+```dist_threshold``` - this sets a 'sphere of influence' for individual obstacle point. Larger values of this parameter will result in trajectories with bigger margin from obstacle
+```lead``` - this is a smoothing factor of trajectory execution. If this value is too big, vehicle will ignore sharp obstacle avoidance maneuvers and risks crashing into a small/thin obstacle. If this value is too small, vehicle will fly too wobbly.
+```q_repel``` - the strength of repelling force is determined by this parameter.
+
+
+
+
