@@ -15,7 +15,7 @@ rospy.init_node('obstacle_avoidance')
 class AvoidanceNavigation:
     def __init__(self, target_point, pointcloud_topic='/camera/depth/color/points', target_point_frame='map',
                  target_point_tolerance=1, tl_write_frequency=0.01, traj_compute_frequency=0.1,
-                 map_update_frequency=0.2):
+                 map_update_frequency=0.2, lead=0.8):
         """
 
         :param target_point: point where the vehicle needs to go while avoiding obstacles
@@ -27,6 +27,7 @@ class AvoidanceNavigation:
         :param traj_compute_frequency: wait period before generating next local trajectory
         :param map_update_frequency: wait period before updating the pointcloud map with the new reading from
         pointcloud_topic
+        :param lead: smoothing factor of trajectory execution
         """
         self.target_point = target_point
         self.target_point_frame = target_point_frame
@@ -36,6 +37,7 @@ class AvoidanceNavigation:
         self.traj_compute_frequency = traj_compute_frequency
         self.pointcloud_topic = pointcloud_topic
         self.target_point_tolerance = target_point_tolerance
+        self.lead = lead
 
         self.flying = False
         self.v_pf = 0
@@ -99,7 +101,7 @@ class AvoidanceNavigation:
         while True:
             self.telem = self.get_telemetry(frame_id='map')
 
-    def _fly_trajectory_v(self, trajectory, speed, lead=0.8):
+    def _fly_trajectory_v(self, trajectory, speed):
         self.update_traj_flag = False  # Reset the trajectory execution stopper flag
 
         # Pre-compute initial lead index
@@ -115,7 +117,7 @@ class AvoidanceNavigation:
                 diff = trajectory[i] - np.array([self.telem.x, self.telem.y, self.telem.z])
                 dist = np.linalg.norm(diff)
 
-                if dist > lead or i == len(trajectory) - 1:
+                if dist > self.lead or i == len(trajectory) - 1:
                     break
                 else:
                     i += 1
