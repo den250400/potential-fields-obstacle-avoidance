@@ -4,7 +4,7 @@ import math
 
 
 RTH_ALTITUDE = 8
-HOME_X = -4
+HOME_X = 0
 HOME_Y = 0
 HOME_Z = 2.2
 

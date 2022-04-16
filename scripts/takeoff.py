@@ -24,5 +24,5 @@ def navigate_wait(x=0, y=0, z=0, yaw=float('nan'), speed=0.5, frame_id='map', to
 telem = get_telemetry(frame_id='map')
 
 print("Starting takeoff")
-navigate_wait(x=2, y=telem.y, z=TAKEOFF_ALTITUDE, yaw=0, speed=2)
+navigate_wait(x=0, y=telem.y, z=TAKEOFF_ALTITUDE, yaw=0, speed=2)
 print("Takeoff finished")

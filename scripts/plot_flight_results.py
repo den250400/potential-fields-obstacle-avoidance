@@ -3,7 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-POINTCLOUD_IDX = 13
+POINTCLOUD_IDX = 16
 
 
 with open('../logs/flight.pickle', 'rb') as file:
@@ -25,14 +25,22 @@ plt.ylabel('Скорость, м/с')
 plt.legend()
 plt.show()
 
+plt.plot(data['pitch_rate'], label='pitch_rate')
+plt.plot(data['roll_rate'], label='roll_rate')
+plt.plot(data['yaw_rate'], label='yaw_rate')
+plt.xlabel('Время с начала миссии, с')
+plt.ylabel('Угловые скорости, рад/с')
+plt.legend()
+plt.show()
+
 fig = plt.figure(figsize=(10, 10))
 ax = fig.gca(projection='3d')
 ax.scatter(data['x'], data['y'], data['z'], color='red')
 
 for i, trajectory in enumerate(data['local_trajectories']):
-    if 7 < i < 16:
+    if 10 < i < 25:
         ax.plot(trajectory[:, 0], trajectory[:, 1], trajectory[:, 2])
-        ax.text(trajectory[0, 0], trajectory[0, 1], trajectory[0, 2], s=str(i))
+        ax.text(trajectory[0, 0], trajectory[0, 1], trajectory[0, 2]+0.4, s=str(i))
 print(len(data['x']))
 
 ax.set_title('Траектория полета')
@@ -46,7 +54,7 @@ ax.scatter(data['x'][-1:], data['y'][-1:], data['z'][-1:], color='red')
 ax.text(data['x'][-1], data['y'][-1], data['z'][-1], s='Точка посадки', ha='right')
 
 ax.scatter(data['pointcloud'][POINTCLOUD_IDX][::8, 0], data['pointcloud'][POINTCLOUD_IDX][::8, 1], data['pointcloud'][POINTCLOUD_IDX][::8, 2])
-ax.set_xlim(10, 22)
-ax.set_ylim(-6, 6)
+ax.set_xlim(0, 20)
+ax.set_ylim(-10, 10)
 
 plt.show()

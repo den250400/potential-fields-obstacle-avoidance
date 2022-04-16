@@ -15,7 +15,7 @@ rospy.init_node('obstacle_avoidance')
 class AvoidanceNavigation:
     def __init__(self, target_point, pointcloud_topic='/camera/depth/color/points', target_point_frame='map',
                  target_point_tolerance=1, tl_write_frequency=0.01, traj_compute_frequency=0.1,
-                 map_update_frequency=0.2, lead=0.8):
+                 map_update_frequency=0.2, lead=2):
         """
 
         :param target_point: point where the vehicle needs to go while avoiding obstacles
@@ -50,6 +50,9 @@ class AvoidanceNavigation:
             'vy': [],
             'vz': [],
             'yaw': [],
+            'pitch_rate': [],
+            'roll_rate': [],
+            'yaw_rate': [],
             'pointcloud': [],
             'local_trajectories': [],
             'time': []
@@ -173,8 +176,12 @@ class AvoidanceNavigation:
 
             self.telem_history['local_trajectories'].append(local_trajectory)
             self.telem_history['pointcloud'].append(self.mapper.get_pointcloud())
+            self.telem_history['pitch_rate'].append(self.telem.pitch_rate)
+            self.telem_history['roll_rate'].append(self.telem.roll_rate)
+            self.telem_history['yaw_rate'].append(self.telem.yaw_rate)
             self._update_trajectory(local_trajectory, speed)
             rospy.sleep(self.traj_compute_frequency)
+
 
         self.flying = False
         self.set_velocity(vx=0, vy=0, vz=0, frame_id='map')

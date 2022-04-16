@@ -10,12 +10,13 @@ import threading
 
 class PointCloudMapper:
     def __init__(self, depth_topic, update_frequency=0.5, pointcloud_size=1000, pointcloud_size_max=5000, downsample_factor=2,
-                 min_dist=0.15):
+                 min_dist=0.15, angular_rate_max=0.2):
         self.depth_topic = depth_topic
         self.update_frequency = update_frequency
         self.pointcloud_size = pointcloud_size
         self.pointcloud_size_max = pointcloud_size_max
         self.downsample_factor = downsample_factor
+        self.angular_rate_max = angular_rate_max
 
         self.depth_subscriber = rospy.Subscriber(self.depth_topic, PointCloud2, self._depth_callback)
         self.get_telemetry = rospy.ServiceProxy('get_telemetry', srv.GetTelemetry)
@@ -47,6 +48,12 @@ class PointCloudMapper:
     def _loop(self):
         while True:
             if self.recent_pointcloud_msg is None:
+                rospy.sleep(self.update_frequency)
+                continue
+            telem = self.recent_telem
+
+            if telem.pitch_rate > self.angular_rate_max or telem.roll_rate > self.angular_rate_max or telem.yaw_rate > self.angular_rate_max:
+                rospy.sleep(self.update_frequency)
                 continue
 
             point_arr = ros_numpy.point_cloud2.pointcloud2_to_xyz_array(self.recent_pointcloud_msg)
