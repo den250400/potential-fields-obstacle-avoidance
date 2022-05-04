@@ -45,6 +45,26 @@ class PointCloudMapper:
         self.recent_telem = self.get_telemetry(frame_id='map')
         self.recent_pointcloud_msg = data
 
+    def _uniform_downsampling(self, pointcloud, voxel_size, max_pts_per_voxel):
+        nb_vox = np.ceil((np.max(pointcloud, axis=0) - np.min(pointcloud, axis=0)) / voxel_size)
+        non_empty_voxel_keys, inverse, nb_pts_per_voxel = np.unique(
+            ((pointcloud - np.min(pointcloud, axis=0)) // 0.3).astype(int), axis=0, return_inverse=True,
+            return_counts=True)
+        idx_pts_vox_sorted = np.argsort(inverse)
+        pointcloud_downsampled = np.zeros(shape=(max_pts_per_voxel*len(non_empty_voxel_keys), 3))
+        last_seen = 0
+        last_seen_downsampled = 0
+
+        for idx, vox in enumerate(non_empty_voxel_keys):
+            step = len(pointcloud[idx_pts_vox_sorted[last_seen:last_seen + nb_pts_per_voxel[idx]]]) // max_pts_per_voxel + 1
+            voxel_downsampled = pointcloud[idx_pts_vox_sorted[last_seen:last_seen + nb_pts_per_voxel[idx]:step]]
+            pointcloud_downsampled[last_seen_downsampled:last_seen_downsampled + len(voxel_downsampled)] = voxel_downsampled
+
+            last_seen += nb_pts_per_voxel[idx]
+            last_seen_downsampled += len(voxel_downsampled)
+
+        return pointcloud_downsampled[:last_seen_downsampled]
+
     def _loop(self):
         while True:
             if self.recent_pointcloud_msg is None:

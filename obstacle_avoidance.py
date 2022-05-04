@@ -55,6 +55,10 @@ class AvoidanceNavigation:
             'yaw_rate': [],
             'pointcloud': [],
             'local_trajectories': [],
+            'coord_begin_execution': [],
+            'trajectory_lag': [],
+            'trajectory_target_points': [],
+            'trajectory_actual': [],
             'time': []
         }
 
@@ -102,7 +106,9 @@ class AvoidanceNavigation:
 
     def _telem_updater(self):
         while True:
+            t1 = time.time()
             self.telem = self.get_telemetry(frame_id='map')
+            print("Time for getting telemetry", time.time() - t1)
 
     def _fly_trajectory_v(self, trajectory, speed):
         self.update_traj_flag = False  # Reset the trajectory execution stopper flag
@@ -111,8 +117,17 @@ class AvoidanceNavigation:
         diff = trajectory - np.array([self.telem.x, self.telem.y, self.telem.z]).reshape(1, 3)
         dist = np.linalg.norm(diff, axis=1)
         i = np.argmin(dist)
+        target_points = []
+        actual_trajectory = []
+        self.telem_history['coord_begin_execution'].append([self.telem.x, self.telem.y, self.telem.z])
+
+        nearest_diff_prev = diff[np.argmin(dist)]
+        nearest_dist_prev = dist[np.argmin(dist)]
+
         while i < len(trajectory):
             if not self.flying or self.update_traj_flag:
+                self.telem_history['trajectory_target_points'].append(np.array(target_points))
+                self.telem_history['trajectory_actual'].append(np.array(actual_trajectory))
                 break
 
             # Move target point to fulfill lead requirement
@@ -127,10 +142,29 @@ class AvoidanceNavigation:
 
             end_trajectory_pointer = trajectory[-1] - np.array([self.telem.x, self.telem.y, self.telem.z])
 
+            target_points.append(trajectory[i])
+            actual_trajectory.append(np.array([self.telem.x, self.telem.y, self.telem.z]))
+
             yaw = math.atan2(end_trajectory_pointer[1], end_trajectory_pointer[0])
             vx = speed * diff[0] / dist
             vy = speed * diff[1] / dist
             vz = speed * diff[2] / dist
+
+            # Returning component of velocity
+            diff = trajectory - np.array([self.telem.x, self.telem.y, self.telem.z]).reshape(1, 3)
+            dist = np.linalg.norm(diff, axis=1)
+            nearest_diff = diff[np.argmin(dist)]
+            nearest_dist = dist[np.argmin(dist)]
+
+            k_p = 0.2
+            k_d = 0.2
+
+            vx += k_p * nearest_diff[0] / nearest_dist - k_d * (nearest_diff[0]-nearest_diff_prev[0]) / nearest_dist
+            vy += k_p * nearest_diff[1] / nearest_dist - k_d * (nearest_diff[1]-nearest_diff_prev[1]) / nearest_dist
+            vz += k_p * nearest_diff[2] / nearest_dist - k_d * (nearest_diff[2]-nearest_diff_prev[2]) / nearest_dist
+
+            nearest_diff_prev = nearest_diff
+
             self.set_velocity(vx=vx, vy=vy, vz=vz, yaw=yaw, frame_id='map')
 
     def _update_trajectory(self, trajectory, speed):
@@ -167,18 +201,21 @@ class AvoidanceNavigation:
                 continue
 
             vehicle_coord = np.array([self.telem.x, self.telem.y, self.telem.z])
+            t1 = time.time()
             local_trajectory = self.apf_computer.compute_trajectory(point_cloud=pointcloud,
                                                                     vehicle_coord=vehicle_coord,
                                                                     target_coord=self.target_point,
                                                                     speed=speed,
                                                                     dt=0.05,
                                                                     n_points=60)
+            t2 = time.time()
 
             self.telem_history['local_trajectories'].append(local_trajectory)
             self.telem_history['pointcloud'].append(self.mapper.get_pointcloud())
             self.telem_history['pitch_rate'].append(self.telem.pitch_rate)
             self.telem_history['roll_rate'].append(self.telem.roll_rate)
             self.telem_history['yaw_rate'].append(self.telem.yaw_rate)
+            self.telem_history['trajectory_lag'].append(t2 - t1)
             self._update_trajectory(local_trajectory, speed)
             rospy.sleep(self.traj_compute_frequency)
 
