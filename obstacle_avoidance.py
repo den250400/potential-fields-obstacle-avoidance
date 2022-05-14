@@ -120,10 +120,6 @@ class AvoidanceNavigation:
         target_points = []
         actual_trajectory = []
         self.telem_history['coord_begin_execution'].append([self.telem.x, self.telem.y, self.telem.z])
-
-        nearest_diff_prev = diff[np.argmin(dist)]
-        nearest_dist_prev = dist[np.argmin(dist)]
-
         while i < len(trajectory):
             if not self.flying or self.update_traj_flag:
                 self.telem_history['trajectory_target_points'].append(np.array(target_points))
@@ -149,21 +145,6 @@ class AvoidanceNavigation:
             vx = speed * diff[0] / dist
             vy = speed * diff[1] / dist
             vz = speed * diff[2] / dist
-
-            # Returning component of velocity
-            diff = trajectory - np.array([self.telem.x, self.telem.y, self.telem.z]).reshape(1, 3)
-            dist = np.linalg.norm(diff, axis=1)
-            nearest_diff = diff[np.argmin(dist)]
-            nearest_dist = dist[np.argmin(dist)]
-
-            k_p = 0.2
-            k_d = 0.2
-
-            vx += k_p * nearest_diff[0] / nearest_dist - k_d * (nearest_diff[0]-nearest_diff_prev[0]) / nearest_dist
-            vy += k_p * nearest_diff[1] / nearest_dist - k_d * (nearest_diff[1]-nearest_diff_prev[1]) / nearest_dist
-            vz += k_p * nearest_diff[2] / nearest_dist - k_d * (nearest_diff[2]-nearest_diff_prev[2]) / nearest_dist
-
-            nearest_diff_prev = nearest_diff
 
             self.set_velocity(vx=vx, vy=vy, vz=vz, yaw=yaw, frame_id='map')
 
